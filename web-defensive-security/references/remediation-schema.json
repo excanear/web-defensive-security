@@ -1,0 +1,186 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://claude.local/skills/web-defensive-security/remediation-schema.json",
+  "title": "Web Defensive Security Remediation Results",
+  "description": "Structured remediation output. Finding ids link back to web-offensive-security findings.json (WOS-*) or defensive-discovered findings (WDS-*).",
+  "type": "object",
+  "required": ["schemaVersion", "target", "generatedAt", "input", "baseline", "findings", "securityScore"],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0" },
+    "target": {
+      "type": "object",
+      "required": ["name", "scope"],
+      "properties": {
+        "name": { "type": "string" },
+        "scope": { "type": "string" },
+        "stack": { "type": "array", "items": { "type": "string" } },
+        "environment": { "type": "string", "enum": ["static-only", "local-dynamic", "staging"] },
+        "branch": { "type": "string" },
+        "baseCommit": { "type": "string" }
+      }
+    },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "input": {
+      "type": "object",
+      "required": ["source"],
+      "properties": {
+        "source": { "type": "string", "enum": ["offensive-report", "own-audit", "both"] },
+        "findingsFile": { "type": "string" },
+        "findingsGeneratedAt": { "type": "string" }
+      }
+    },
+    "baseline": {
+      "type": "object",
+      "description": "Test/lint/build state before any change.",
+      "properties": {
+        "commands": { "type": "array", "items": { "type": "string" } },
+        "passed": { "type": "integer" },
+        "failed": { "type": "integer" },
+        "preExistingFailures": { "type": "array", "items": { "type": "string" } },
+        "notes": { "type": "string" }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "originalSeverity", "revalidation", "status"],
+        "properties": {
+          "id": { "type": "string", "description": "WOS-NNN or WDS-NNN." },
+          "title": { "type": "string" },
+          "category": { "type": "string" },
+          "cwe": { "type": "string" },
+          "originalSeverity": { "type": "string", "enum": ["critical", "high", "medium", "low", "info"] },
+          "reassessedSeverity": { "type": "string", "enum": ["critical", "high", "medium", "low", "info"] },
+          "revalidation": {
+            "type": "object",
+            "required": ["result"],
+            "properties": {
+              "result": { "type": "string", "enum": ["confirmed", "false-positive", "already-fixed", "needs-info"] },
+              "method": { "type": "string", "enum": ["static-trace", "dynamic-poc", "test"] },
+              "notes": { "type": "string" }
+            }
+          },
+          "status": { "type": "string", "enum": ["fixed", "partially-fixed", "open", "accepted-risk", "false-positive", "not-tested"] },
+          "rootCause": { "type": "string" },
+          "fix": { "type": "string" },
+          "breakingChange": { "type": "boolean" },
+          "breakingChangeNotes": { "type": "string" },
+          "changes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["file"],
+              "properties": {
+                "file": { "type": "string" },
+                "lines": { "type": "string", "description": "e.g. 12-30,45" },
+                "changeType": { "type": "string", "enum": ["code", "config", "dependency", "test", "infra", "docs"] },
+                "summary": { "type": "string" }
+              }
+            }
+          },
+          "tests": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["name", "kind", "failedBeforeFix", "passesAfterFix"],
+              "properties": {
+                "name": { "type": "string" },
+                "file": { "type": "string" },
+                "kind": { "type": "string", "enum": ["negative", "positive", "regression-script"] },
+                "failedBeforeFix": { "type": ["boolean", "null"], "description": "null for positive tests." },
+                "passesAfterFix": { "type": "boolean" }
+              }
+            }
+          },
+          "reattack": {
+            "type": "object",
+            "properties": {
+              "performed": { "type": "boolean" },
+              "method": { "type": "string", "enum": ["static", "dynamic", "both"] },
+              "variantsTried": { "type": "array", "items": { "type": "string" } },
+              "result": { "type": "string", "enum": ["blocked", "bypassed", "not-tested"] },
+              "notes": { "type": "string" }
+            }
+          },
+          "residualRisk": { "type": "string" },
+          "requiredActions": { "type": "array", "items": { "type": "string" }, "description": "Out-of-code actions, e.g. rotate secret X." }
+        }
+      }
+    },
+    "hardening": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["area", "change"],
+        "properties": {
+          "area": { "type": "string", "description": "headers, cookies, cors, csrf, rate-limit, errors, logging, secrets, dependencies, ci, container, iac, database." },
+          "change": { "type": "string" },
+          "files": { "type": "array", "items": { "type": "string" } },
+          "verifiedBy": { "type": "string" }
+        }
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["package", "from", "to"],
+        "properties": {
+          "package": { "type": "string" },
+          "from": { "type": "string" },
+          "to": { "type": "string" },
+          "advisories": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "testRun": {
+      "type": "object",
+      "description": "Final test/lint/build state after all changes.",
+      "properties": {
+        "commands": { "type": "array", "items": { "type": "string" } },
+        "passed": { "type": "integer" },
+        "failed": { "type": "integer" },
+        "securityTestsAdded": { "type": "integer" },
+        "regressions": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "securityScore": {
+      "type": "object",
+      "required": ["before", "after"],
+      "properties": {
+        "before": {
+          "type": "object",
+          "required": ["score", "band"],
+          "properties": {
+            "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+            "band": { "type": "string", "enum": ["strong", "good", "needs-work", "weak", "critical"] },
+            "calculation": { "type": "string" }
+          }
+        },
+        "after": {
+          "type": "object",
+          "required": ["score", "band"],
+          "properties": {
+            "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+            "band": { "type": "string", "enum": ["strong", "good", "needs-work", "weak", "critical"] },
+            "calculation": { "type": "string" }
+          }
+        }
+      }
+    },
+    "coverageGaps": { "type": "array", "items": { "type": "string" }, "description": "What was not tested and why." },
+    "recommendations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["priority", "recommendation"],
+        "properties": {
+          "priority": { "type": "string", "enum": ["P0", "P1", "P2", "P3"] },
+          "recommendation": { "type": "string" },
+          "rationale": { "type": "string" }
+        }
+      }
+    }
+  }
+}
